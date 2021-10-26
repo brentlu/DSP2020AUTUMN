@@ -63,6 +63,12 @@ cat $test_text | python utility/word2char.py > decode/test.text
 
 cat decode/test.text | cut -d ' ' -f 1 > decode/test.list
 
+PWD=$(pwd)
+sed -e "s:/opt/kaldi/dsp-hw2-1:${PWD}:" material/train.wav.scp \
+  > train/train.wav.scp
+sed -e "s:/opt/kaldi/dsp-hw2-1:${PWD}:" material/test.wav.scp \
+  > train/test.wav.scp
+
 sec=$SECONDS
 
 echo "Execution time for whole script = `utility/timer.pl $sec`"
