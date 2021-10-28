@@ -5,7 +5,7 @@ SRC_PATH ?= src
 
 CXX = g++
 CXXFLAGS = -O2 -I$(SRIPATH)/include -I$(INC_PATH)
-vpath lib%.a $(SRIPATH)/lib/$(MACHINE_TYPE)
+vpath lib%.a $(SRIPATH)/lib/$(MACHINE_TYPE) /opt/kaldi/tools/liblbfgs-1.10/lib/.libs /usr/lib/gcc/x86_64-linux-gnu/9
 vpath %.c $(SRC_PATH)
 vpath %.cpp $(SRC_PATH)
 
@@ -16,7 +16,7 @@ FROM ?= Big5-ZhuYin.map
 TO ?= ZhuYin-Big5.map
 .PHONY: all clean map
 
-$(TARGET): $(OBJ) -loolm -ldstruct -lmisc
+$(TARGET): $(OBJ) -loolm -ldstruct -lmisc -lz -lpthread -llbfgs -lgomp -ldl
 	$(CXX) $(LDFLAGS) -o $@ $^
 
 %.o: %.cpp
