@@ -34,6 +34,21 @@ struct v_time {
 static struct v_time my_viterbi[MAX_LINE_SIZE]; /* easier for backtrace */
 static int v_time_num;
 
+void viterbi_cleanup(void)
+{
+    int i;
+
+    for (i = 0; i < MAX_LINE_SIZE; i++) {
+        if (my_viterbi[i].states == NULL)
+            break;
+
+        free(my_viterbi[i].states);
+
+        my_viterbi[i].states = NULL;
+        my_viterbi[i].state_num = 0;
+    }
+}
+
 void viterbi_output(FILE *fp, struct v_state *state)
 {
     if (state->prev != NULL) {
@@ -278,7 +293,7 @@ void usage(char *name)
 int main(int argc, char *argv[])
 {
     FILE *input_fp, *output_fp;
-    int ret = 0;
+    int i, ret = 0;
 
     if (argc != 5) {
         usage(argv[0]);
@@ -320,6 +335,12 @@ int main(int argc, char *argv[])
         goto _exit;
     }
 
+    /* init the state machine */
+    for (i = 0; i < MAX_LINE_SIZE; i++) {
+        my_viterbi[i].states = NULL;
+        my_viterbi[i].state_num = 0;
+    }
+
     while (fgets(line, sizeof(line), input_fp) != 0) {
         /* run viterbi for each line */
         viterbi_process(line, voc, lm);
@@ -327,6 +348,9 @@ int main(int argc, char *argv[])
         /* output the result */
         viterbi_output(output_fp, &(my_viterbi[v_time_num-1].states[0]));
         fprintf(output_fp, "\n");
+
+        /* release memory */
+        viterbi_cleanup();
     }
 
 _exit:
