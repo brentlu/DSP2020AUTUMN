@@ -60,7 +60,7 @@ void viterbi_output(FILE *fp, struct v_state *state)
         fprintf(fp, "%s", state->value);
 }
 
-double ngram_prob(Vocab& voc, Ngram& lm, char *word_1, char *word_2)
+double ngram_prob2(Vocab& voc, Ngram& lm, char *word_1, char *word_2)
 {
     VocabIndex idx_1 = voc.getIndex(word_1);
     VocabIndex idx_2 = voc.getIndex(word_2);
@@ -73,6 +73,24 @@ double ngram_prob(Vocab& voc, Ngram& lm, char *word_1, char *word_2)
     VocabIndex context[] = {idx_1, Vocab_None};
 
     return lm.wordProb(idx_2, context);
+}
+
+double ngram_prob3(Vocab& voc, Ngram& lm, char *word_1, char *word_2, char *word_3)
+{
+    VocabIndex idx_1 = voc.getIndex(word_1);
+    VocabIndex idx_2 = voc.getIndex(word_2);
+    VocabIndex idx_3 = voc.getIndex(word_3);
+
+    if (idx_1 == Vocab_None)
+        idx_1 = voc.getIndex(Vocab_Unknown);
+    if (idx_2 == Vocab_None)
+        idx_2 = voc.getIndex(Vocab_Unknown);
+    if (idx_3 == Vocab_None)
+        idx_3 = voc.getIndex(Vocab_Unknown);
+
+    VocabIndex context[] = {idx_2, idx_1, Vocab_None};
+
+    return lm.wordProb(idx_3, context);
 }
 
 struct mapping *get_mapping(char *key)
@@ -89,7 +107,7 @@ struct mapping *get_mapping(char *key)
     return NULL;
 }
 
-int viterbi_process(char *line, Vocab &voc, Ngram &lm)
+int viterbi_process(char *line, Vocab &voc, Ngram &lm, int order)
 {
     char *token;
     int ret = 0;
@@ -149,10 +167,17 @@ int viterbi_process(char *line, Vocab &voc, Ngram &lm)
             strncpy(curr->states[i].value, map->values[i], sizeof(word));
 
             for (int j = 0; j < prev->state_num; j++) {
-                delta = prev->states[j].delta +
-                        ngram_prob(voc, lm,
-                                   prev->states[j].value, /* previous character */
-                                   curr->states[i].value);
+                if (order == 2 || v_time_num < 2)
+                    delta = prev->states[j].delta +
+                            ngram_prob2(voc, lm,
+                                        prev->states[j].value, /* previous character */
+                                        curr->states[i].value);
+                else
+                    delta = prev->states[j].delta +
+                            ngram_prob3(voc, lm,
+                                        prev->states[j].prev->value,
+                                        prev->states[j].value, /* previous character */
+                                        curr->states[i].value);
 
                 if ((j == 0) || delta > max_delta) {
                     max_prev = &prev->states[j];
@@ -184,10 +209,17 @@ int viterbi_process(char *line, Vocab &voc, Ngram &lm)
     strncpy(curr->states[0].value, "</s>", sizeof(word));
 
     for (int j = 0; j < prev->state_num; j++) {
-        delta = prev->states[j].delta +
-                ngram_prob(voc, lm,
-                           prev->states[j].value,
-                           curr->states[0].value);
+        if (order == 2 || v_time_num < 2)
+            delta = prev->states[j].delta +
+                    ngram_prob2(voc, lm,
+                                prev->states[j].value,
+                                curr->states[0].value);
+        else
+            delta = prev->states[j].delta +
+                    ngram_prob3(voc, lm,
+                                prev->states[j].prev->value,
+                                prev->states[j].value, /* previous character */
+                                curr->states[0].value);
 
         if ((j == 0) || delta > max_delta) {
             max_prev = &prev->states[j];
@@ -301,7 +333,7 @@ int main(int argc, char *argv[])
     }
 
     /* copy from web page example */
-    int ngram_order = 2;
+    int ngram_order = 3;
     Vocab voc;
     Ngram lm(voc, ngram_order);
 
@@ -343,7 +375,7 @@ int main(int argc, char *argv[])
 
     while (fgets(line, sizeof(line), input_fp) != 0) {
         /* run viterbi for each line */
-        viterbi_process(line, voc, lm);
+        viterbi_process(line, voc, lm, ngram_order);
 
         /* output the result */
         viterbi_output(output_fp, &(my_viterbi[v_time_num-1].states[0]));
